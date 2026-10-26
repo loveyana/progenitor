@@ -3002,7 +3002,7 @@ checksum = "562d481066bde0658276a35467c4af00bdc6ee726305698a55b86e61d7ad82bb"
 [[package]]
 name = "typify"
 version = "0.6.2"
-source = "git+https://github.com/loveyana/typify.git?rev=5364b81a8fa68b2ab625b4126d739bcc089434cc#5364b81a8fa68b2ab625b4126d739bcc089434cc"
+source = "git+https://github.com/loveyana/typify.git?rev=db4f0d5aac89f19165b3558a9b66b5a219cb1099#db4f0d5aac89f19165b3558a9b66b5a219cb1099"
 dependencies = [
  "typify-impl",
  "typify-macro",
@@ -3011,7 +3011,7 @@ dependencies = [
 [[package]]
 name = "typify-impl"
 version = "0.6.2"
-source = "git+https://github.com/loveyana/typify.git?rev=5364b81a8fa68b2ab625b4126d739bcc089434cc#5364b81a8fa68b2ab625b4126d739bcc089434cc"
+source = "git+https://github.com/loveyana/typify.git?rev=db4f0d5aac89f19165b3558a9b66b5a219cb1099#db4f0d5aac89f19165b3558a9b66b5a219cb1099"
 dependencies = [
  "heck",
  "log",
@@ -3030,7 +3030,7 @@ dependencies = [
 [[package]]
 name = "typify-macro"
 version = "0.6.2"
-source = "git+https://github.com/loveyana/typify.git?rev=5364b81a8fa68b2ab625b4126d739bcc089434cc#5364b81a8fa68b2ab625b4126d739bcc089434cc"
+source = "git+https://github.com/loveyana/typify.git?rev=db4f0d5aac89f19165b3558a9b66b5a219cb1099#db4f0d5aac89f19165b3558a9b66b5a219cb1099"
 dependencies = [
  "proc-macro2",
  "quote",

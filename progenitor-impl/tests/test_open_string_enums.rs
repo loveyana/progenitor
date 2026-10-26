@@ -111,3 +111,54 @@ fn disabled_policy_keeps_upstream_discriminator_output() {
         .to_string();
     assert_eq!(with_discriminator, without_discriminator);
 }
+
+#[test]
+fn unrelated_same_value_status_is_not_a_discriminator() {
+    let api = serde_json::from_value(json!({
+        "openapi":"3.0.3", "info":{"title":"Identity fence", "version":"1"}, "paths":{},
+        "components":{"schemas":{
+            "Tag":{"type":"string","enum":["draft","active","disabled"]},
+            "Status":{"type":"string","enum":["draft","active","disabled"]},
+            "Tagged":{"type":"object","required":["kind"],
+                "discriminator":{"propertyName":"kind"},
+                "properties":{"kind":{"$ref":"#/components/schemas/Tag"}}},
+            "Fields":{"type":"object","properties":{"status":{"$ref":"#/components/schemas/Status"}}},
+            "Extended":{"allOf":[{"$ref":"#/components/schemas/Fields"},
+                {"type":"object","properties":{"id":{"type":"string"}}}]}
+        }}
+    })).unwrap();
+    let output = Generator::new(GenerationSettings::default().with_open_string_enums(true))
+        .generate_tokens(&api)
+        .unwrap()
+        .to_string();
+    assert_eq!(
+        output
+            .matches("Unknown (:: std :: string :: String)")
+            .count(),
+        1,
+        "the tag stays closed; ordinary status stays open through pure inheritance"
+    );
+}
+
+#[test]
+fn nullable_wrapper_does_not_protect_referenced_enum() {
+    let api = serde_json::from_value(json!({
+        "openapi":"3.0.3", "info":{"title":"Nullable fixture", "version":"1"}, "paths":{},
+        "components":{"schemas":{
+            "Kind":{"type":"string","enum":["first"]},
+            "Wrapped":{"nullable":true,"allOf":[{"$ref":"#/components/schemas/Kind"}]}
+        }}
+    }))
+    .unwrap();
+    let output = Generator::new(GenerationSettings::default().with_open_string_enums(true))
+        .generate_tokens(&api)
+        .unwrap()
+        .to_string();
+    assert_eq!(
+        output
+            .matches("Unknown (:: std :: string :: String)")
+            .count(),
+        1
+    );
+    assert!(output.contains("Option"));
+}

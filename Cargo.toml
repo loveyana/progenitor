@@ -64,9 +64,9 @@ uuid = { version = "1.23.1", features = ["serde", "v4"] }
 
 [patch.crates-io]
 #typify = { path = "../typify/typify" }
-typify = { git = "https://github.com/loveyana/typify.git", rev = "5364b81a8fa68b2ab625b4126d739bcc089434cc" }
-typify-impl = { git = "https://github.com/loveyana/typify.git", rev = "5364b81a8fa68b2ab625b4126d739bcc089434cc" }
-typify-macro = { git = "https://github.com/loveyana/typify.git", rev = "5364b81a8fa68b2ab625b4126d739bcc089434cc" }
+typify = { git = "https://github.com/loveyana/typify.git", rev = "db4f0d5aac89f19165b3558a9b66b5a219cb1099" }
+typify-impl = { git = "https://github.com/loveyana/typify.git", rev = "db4f0d5aac89f19165b3558a9b66b5a219cb1099" }
+typify-macro = { git = "https://github.com/loveyana/typify.git", rev = "db4f0d5aac89f19165b3558a9b66b5a219cb1099" }
 
 #[patch.crates-io]
 #serde_tokenstream = { path = "../serde_tokenstream" }

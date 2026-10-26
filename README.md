@@ -405,10 +405,13 @@ progenitor::generate_api!(
 Eligible string enums retain their known variants and gain `Unknown(String)`,
 with collision-safe fallback names. Unknown strings round-trip exactly;
 non-string JSON values still fail, and length/pattern constraints remain.
-Numeric enums, impossible/empty enums, and enums protected by composition or
-discriminator schemas are not opened. The exclusion is conservative: unrelated
-enums containing only protected string values may also remain closed. A plain
-nullable wrapper is not considered a type-dispatch composition.
+Numeric enums, impossible/empty enums, and enums protected by real composition
+or discriminator schemas are not opened. Protection uses schema/reference
+identity, so an unrelated enum with identical wire values is not closed.
+Nullable `oneOf`/`anyOf`, singleton `allOf` and disjoint object-only inheritance
+are not competing dispatch branches. Actual literal/conditional unions,
+intersections and discriminator data remain conservative, including late
+references and nested containers; incompatible open/closed named reuse fails.
 
 Enabling the policy changes generated public APIs: those enums are
 `#[non_exhaustive]`, no longer implement `Copy`, and positional method arguments
