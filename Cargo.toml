@@ -62,8 +62,11 @@ url = "2.5.8"
 unicode-ident = "1.0.24"
 uuid = { version = "1.23.1", features = ["serde", "v4"] }
 
-#[patch.crates-io]
+[patch.crates-io]
 #typify = { path = "../typify/typify" }
+typify = { git = "https://github.com/loveyana/typify.git", rev = "5364b81a8fa68b2ab625b4126d739bcc089434cc" }
+typify-impl = { git = "https://github.com/loveyana/typify.git", rev = "5364b81a8fa68b2ab625b4126d739bcc089434cc" }
+typify-macro = { git = "https://github.com/loveyana/typify.git", rev = "5364b81a8fa68b2ab625b4126d739bcc089434cc" }
 
 #[patch.crates-io]
 #serde_tokenstream = { path = "../serde_tokenstream" }

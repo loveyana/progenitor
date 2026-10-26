@@ -76,6 +76,7 @@ pub struct GenerationSettings {
     replace: HashMap<String, (String, Vec<TypeImpl>)>,
     convert: Vec<(schemars::schema::SchemaObject, String, Vec<TypeImpl>)>,
     timeout: Option<u64>,
+    open_string_enums: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -115,6 +116,17 @@ impl Default for TagStyle {
 }
 
 impl GenerationSettings {
+    /// Allow generated string enums to retain unrecognized wire values.
+    ///
+    /// Disabled by default. Opting in adds an owned unknown-value variant,
+    /// removes `Copy` from those enums, and makes their string parsing open.
+    /// This affects request and response types alike; callers must still
+    /// reject unsupported values at application or request-validation boundaries.
+    pub fn with_open_string_enums(&mut self, enabled: bool) -> &mut Self {
+        self.open_string_enums = enabled;
+        self
+    }
+
     /// Create new generator settings with default values.
     pub fn new() -> Self {
         Self::default()
@@ -274,7 +286,8 @@ impl Generator {
         let mut type_settings = TypeSpaceSettings::default();
         type_settings
             .with_type_mod("types")
-            .with_struct_builder(settings.interface == InterfaceStyle::Builder);
+            .with_struct_builder(settings.interface == InterfaceStyle::Builder)
+            .with_open_string_enums(settings.open_string_enums);
         settings.extra_derives.iter().for_each(|derive| {
             let _ = type_settings.with_derive(derive.clone());
         });
@@ -324,10 +337,12 @@ impl Generator {
 
         // Convert our components dictionary to schemars
         let schemas = spec.components.iter().flat_map(|components| {
-            components
-                .schemas
-                .iter()
-                .map(|(name, ref_or_schema)| (name.clone(), ref_or_schema.to_schema()))
+            components.schemas.iter().map(|(name, ref_or_schema)| {
+                (
+                    name.clone(),
+                    ref_or_schema.to_schema(self.settings.open_string_enums),
+                )
+            })
         });
 
         self.type_space.add_ref_types(schemas)?;

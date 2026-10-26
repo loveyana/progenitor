@@ -35,10 +35,12 @@ impl Generator {
 
         // Convert our components dictionary to schemars
         let schemas = spec.components.iter().flat_map(|components| {
-            components
-                .schemas
-                .iter()
-                .map(|(name, ref_or_schema)| (name.clone(), ref_or_schema.to_schema()))
+            components.schemas.iter().map(|(name, ref_or_schema)| {
+                (
+                    name.clone(),
+                    ref_or_schema.to_schema(self.settings.open_string_enums),
+                )
+            })
         });
 
         self.type_space.add_ref_types(schemas)?;

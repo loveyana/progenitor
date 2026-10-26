@@ -103,6 +103,7 @@ impl syn::parse::Parse for SpecSource {
 ///     [ replace = { TypeName = full_path::to::other::TypeName, }]
 ///     [ convert = { { <schema> } = full_path::to::TypeName, }]
 ///     [ timeout = u64 ]
+///     [ open_string_enums = bool ]
 /// );
 /// ```
 ///
@@ -191,6 +192,8 @@ struct MacroSettings {
     interface: InterfaceStyle,
     #[serde(default)]
     tags: TagStyle,
+    #[serde(default)]
+    open_string_enums: bool,
 
     inner_type: Option<ParseWrapper<syn::Type>>,
     pre_hook: Option<ParseWrapper<ClosureOrPath>>,
@@ -341,6 +344,7 @@ fn do_generate_api(item: TokenStream) -> Result<TokenStream, syn::Error> {
             spec,
             interface,
             tags,
+            open_string_enums,
             inner_type,
             pre_hook,
             pre_hook_async,
@@ -361,6 +365,7 @@ fn do_generate_api(item: TokenStream) -> Result<TokenStream, syn::Error> {
         let mut settings = GenerationSettings::default();
         settings.with_interface(interface);
         settings.with_tag(tags);
+        settings.with_open_string_enums(open_string_enums);
         inner_type.map(|inner_type| settings.with_inner_type(inner_type.to_token_stream()));
         pre_hook.map(|pre_hook| settings.with_pre_hook(pre_hook.into_inner().0));
         pre_hook_async

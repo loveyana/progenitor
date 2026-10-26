@@ -6,22 +6,26 @@ use schemars::schema::SingleOrVec;
 use serde_json::Value;
 
 pub trait ToSchema {
-    fn to_schema(&self) -> schemars::schema::Schema;
+    fn to_schema(&self, preserve_discriminator: bool) -> schemars::schema::Schema;
 }
 
 trait Convert<T> {
     fn convert(&self) -> T;
-}
 
-impl ToSchema for openapiv3::Schema {
-    fn to_schema(&self) -> schemars::schema::Schema {
+    fn convert_with(&self, _preserve_discriminator: bool) -> T {
         self.convert()
     }
 }
 
+impl ToSchema for openapiv3::Schema {
+    fn to_schema(&self, preserve_discriminator: bool) -> schemars::schema::Schema {
+        self.convert_with(preserve_discriminator)
+    }
+}
+
 impl ToSchema for openapiv3::ReferenceOr<openapiv3::Schema> {
-    fn to_schema(&self) -> schemars::schema::Schema {
-        self.convert()
+    fn to_schema(&self, preserve_discriminator: bool) -> schemars::schema::Schema {
+        self.convert_with(preserve_discriminator)
     }
 }
 
@@ -30,7 +34,13 @@ where
     I: Convert<T>,
 {
     fn convert(&self) -> Vec<T> {
-        self.iter().map(Convert::convert).collect()
+        self.convert_with(false)
+    }
+
+    fn convert_with(&self, preserve_discriminator: bool) -> Vec<T> {
+        self.iter()
+            .map(|value| value.convert_with(preserve_discriminator))
+            .collect()
     }
 }
 
@@ -39,21 +49,33 @@ where
     I: Convert<T>,
 {
     fn convert(&self) -> Option<Vec<T>> {
+        self.convert_with(false)
+    }
+
+    fn convert_with(&self, preserve_discriminator: bool) -> Option<Vec<T>> {
         if self.is_empty() {
             None
         } else {
-            Some(self.iter().map(Convert::convert).collect())
+            Some(
+                self.iter()
+                    .map(|value| value.convert_with(preserve_discriminator))
+                    .collect(),
+            )
         }
     }
 }
 
 impl Convert<schemars::schema::Schema> for openapiv3::ReferenceOr<openapiv3::Schema> {
     fn convert(&self) -> schemars::schema::Schema {
+        self.convert_with(false)
+    }
+
+    fn convert_with(&self, preserve_discriminator: bool) -> schemars::schema::Schema {
         match self {
             openapiv3::ReferenceOr::Reference { reference } => {
                 schemars::schema::SchemaObject::new_ref(reference.clone()).into()
             }
-            openapiv3::ReferenceOr::Item(schema) => schema.convert(),
+            openapiv3::ReferenceOr::Item(schema) => schema.convert_with(preserve_discriminator),
         }
     }
 }
@@ -64,12 +86,20 @@ where
     T: Clone,
 {
     fn convert(&self) -> TT {
-        self.clone().unbox().convert()
+        self.convert_with(false)
+    }
+
+    fn convert_with(&self, preserve_discriminator: bool) -> TT {
+        self.clone().unbox().convert_with(preserve_discriminator)
     }
 }
 
 impl Convert<schemars::schema::Schema> for openapiv3::Schema {
     fn convert(&self) -> schemars::schema::Schema {
+        self.convert_with(false)
+    }
+
+    fn convert_with(&self, preserve_discriminator: bool) -> schemars::schema::Schema {
         // TODO the discriminator field is used in a way that seems both
         // important and unfortunately redundant. It corresponds to the same
         // regime as internally tagged enums in the serde sense: a field that
@@ -93,7 +123,7 @@ impl Convert<schemars::schema::Schema> for openapiv3::Schema {
 
         let openapiv3::SchemaData {
             nullable,
-            discriminator: _, // TODO: see above
+            discriminator,
             external_docs: _, // TODO: append to description?
 
             title,
@@ -118,7 +148,15 @@ impl Convert<schemars::schema::Schema> for openapiv3::Schema {
         };
 
         let metadata = Some(Box::new(metadata)).simplify_default();
-        let extensions = extensions.into_iter().collect();
+        let mut extensions: schemars::Map<String, Value> = extensions.into_iter().collect();
+        // Keep the declaration visible to Typify's opt-in enum policy without
+        // changing the existing conversion of discriminator-backed unions.
+        if let Some(discriminator) = discriminator.filter(|_| preserve_discriminator) {
+            extensions.insert(
+                "discriminator".into(),
+                serde_json::to_value(discriminator).unwrap(),
+            );
+        }
 
         match &self.schema_kind {
             openapiv3::SchemaKind::Type(openapiv3::Type::String(openapiv3::StringType {
@@ -226,9 +264,10 @@ impl Convert<schemars::schema::Schema> for openapiv3::Schema {
                     max_properties: max_properties.convert(),
                     min_properties: min_properties.convert(),
                     required: required.convert(),
-                    properties: properties.convert(),
+                    properties: properties.convert_with(preserve_discriminator),
                     pattern_properties: schemars::Map::default(),
-                    additional_properties: additional_properties.convert(),
+                    additional_properties: additional_properties
+                        .convert_with(preserve_discriminator),
                     property_names: None,
                 }))
                 .simplify_default(),
@@ -246,7 +285,9 @@ impl Convert<schemars::schema::Schema> for openapiv3::Schema {
                 instance_type: instance_type(schemars::schema::InstanceType::Array, nullable),
                 array: Some(Box::new(schemars::schema::ArrayValidation {
                     items: items.as_ref().map(|items| {
-                        schemars::schema::SingleOrVec::Single(Box::new(items.convert()))
+                        schemars::schema::SingleOrVec::Single(Box::new(
+                            items.convert_with(preserve_discriminator),
+                        ))
                     }),
                     additional_items: None,
                     max_items: max_items.convert(),
@@ -273,7 +314,7 @@ impl Convert<schemars::schema::Schema> for openapiv3::Schema {
                 schemars::schema::SchemaObject {
                     metadata,
                     subschemas: Some(Box::new(schemars::schema::SubschemaValidation {
-                        one_of: Some(one_of.convert()),
+                        one_of: Some(one_of.convert_with(preserve_discriminator)),
                         ..Default::default()
                     })),
                     extensions,
@@ -286,7 +327,7 @@ impl Convert<schemars::schema::Schema> for openapiv3::Schema {
                 schemars::schema::SchemaObject {
                     metadata,
                     subschemas: Some(Box::new(schemars::schema::SubschemaValidation {
-                        all_of: Some(all_of.convert()),
+                        all_of: Some(all_of.convert_with(preserve_discriminator)),
                         ..Default::default()
                     })),
                     extensions,
@@ -299,7 +340,7 @@ impl Convert<schemars::schema::Schema> for openapiv3::Schema {
                 schemars::schema::SchemaObject {
                     metadata,
                     subschemas: Some(Box::new(schemars::schema::SubschemaValidation {
-                        any_of: Some(any_of.convert()),
+                        any_of: Some(any_of.convert_with(preserve_discriminator)),
                         ..Default::default()
                     })),
                     extensions,
@@ -312,7 +353,7 @@ impl Convert<schemars::schema::Schema> for openapiv3::Schema {
                 schemars::schema::SchemaObject {
                     metadata,
                     subschemas: Some(Box::new(schemars::schema::SubschemaValidation {
-                        not: Some(Box::new(not.convert())),
+                        not: Some(Box::new(not.convert_with(preserve_discriminator))),
                         ..Default::default()
                     })),
                     extensions,
@@ -487,13 +528,14 @@ impl Convert<schemars::schema::Schema> for openapiv3::Schema {
 
                 // Object
                 if !properties.is_empty() {
-                    so.object().properties = properties.convert();
+                    so.object().properties = properties.convert_with(preserve_discriminator);
                 }
                 if !required.is_empty() {
                     so.object().required = required.convert();
                 }
                 if additional_properties.is_some() {
-                    so.object().additional_properties = additional_properties.convert();
+                    so.object().additional_properties =
+                        additional_properties.convert_with(preserve_discriminator);
                 }
                 if let Some(min_properties) = min_properties {
                     so.object().min_properties = Some(*min_properties as u32);
@@ -504,7 +546,10 @@ impl Convert<schemars::schema::Schema> for openapiv3::Schema {
 
                 // Array
                 if items.is_some() {
-                    so.array().items = items.convert().clone().map(SingleOrVec::Single);
+                    so.array().items = items
+                        .convert_with(preserve_discriminator)
+                        .clone()
+                        .map(SingleOrVec::Single);
                 }
                 if let Some(min_items) = min_items {
                     so.array().min_items = Some(*min_items as u32);
@@ -518,16 +563,16 @@ impl Convert<schemars::schema::Schema> for openapiv3::Schema {
 
                 // Subschemas
                 if !one_of.is_empty() {
-                    so.subschemas().one_of = one_of.convert();
+                    so.subschemas().one_of = one_of.convert_with(preserve_discriminator);
                 }
                 if !all_of.is_empty() {
-                    so.subschemas().all_of = all_of.convert();
+                    so.subschemas().all_of = all_of.convert_with(preserve_discriminator);
                 }
                 if !any_of.is_empty() {
-                    so.subschemas().any_of = any_of.convert();
+                    so.subschemas().any_of = any_of.convert_with(preserve_discriminator);
                 }
                 if not.is_some() {
-                    so.subschemas().not = not.convert();
+                    so.subschemas().not = not.convert_with(preserve_discriminator);
                 }
 
                 // We do this last so we can infer types if none are specified.
@@ -766,7 +811,16 @@ impl Convert<schemars::Map<String, schemars::schema::Schema>>
     for IndexMap<String, openapiv3::ReferenceOr<Box<openapiv3::Schema>>>
 {
     fn convert(&self) -> schemars::Map<String, schemars::schema::Schema> {
-        self.iter().map(|(k, v)| (k.clone(), v.convert())).collect()
+        self.convert_with(false)
+    }
+
+    fn convert_with(
+        &self,
+        preserve_discriminator: bool,
+    ) -> schemars::Map<String, schemars::schema::Schema> {
+        self.iter()
+            .map(|(key, value)| (key.clone(), value.convert_with(preserve_discriminator)))
+            .collect()
     }
 }
 
@@ -775,7 +829,11 @@ where
     T: Convert<TT>,
 {
     fn convert(&self) -> TT {
-        self.as_ref().convert()
+        self.convert_with(false)
+    }
+
+    fn convert_with(&self, preserve_discriminator: bool) -> TT {
+        self.as_ref().convert_with(preserve_discriminator)
     }
 }
 
@@ -784,15 +842,26 @@ where
     T: Convert<TT>,
 {
     fn convert(&self) -> Option<Box<TT>> {
-        self.as_ref().map(|t| Box::new(t.convert()))
+        self.convert_with(false)
+    }
+
+    fn convert_with(&self, preserve_discriminator: bool) -> Option<Box<TT>> {
+        self.as_ref()
+            .map(|value| Box::new(value.convert_with(preserve_discriminator)))
     }
 }
 
 impl Convert<schemars::schema::Schema> for openapiv3::AdditionalProperties {
     fn convert(&self) -> schemars::schema::Schema {
+        self.convert_with(false)
+    }
+
+    fn convert_with(&self, preserve_discriminator: bool) -> schemars::schema::Schema {
         match self {
             openapiv3::AdditionalProperties::Any(b) => schemars::schema::Schema::Bool(*b),
-            openapiv3::AdditionalProperties::Schema(schema) => schema.convert(),
+            openapiv3::AdditionalProperties::Schema(schema) => {
+                schema.convert_with(preserve_discriminator)
+            }
         }
     }
 }

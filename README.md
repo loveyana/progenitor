@@ -372,6 +372,55 @@ fn main() {
 }
 ```
 
+## Opt-in open string enums (fork extension)
+
+This fork adds an optional string-enum compatibility policy, implemented by its
+pinned Typify dependency. Default generation remains closed.
+
+Command-line generation:
+
+```bash
+cargo progenitor \
+  --input api.json --output generated --name my-client --version 0.1.0 \
+  --open-string-enums
+```
+
+Library/build-script generation:
+
+```rust
+let mut generator = progenitor::Generator::new(
+    progenitor::GenerationSettings::default().with_open_string_enums(true),
+);
+```
+
+Macro generation:
+
+```rust,ignore
+progenitor::generate_api!(
+    spec = "api.json",
+    open_string_enums = true,
+);
+```
+
+Eligible string enums retain their known variants and gain `Unknown(String)`,
+with collision-safe fallback names. Unknown strings round-trip exactly;
+non-string JSON values still fail, and length/pattern constraints remain.
+Numeric enums, impossible/empty enums, and enums protected by composition or
+discriminator schemas are not opened. The exclusion is conservative: unrelated
+enums containing only protected string values may also remain closed. A plain
+nullable wrapper is not considered a type-dispatch composition.
+
+Enabling the policy changes generated public APIs: those enums are
+`#[non_exhaustive]`, no longer implement `Copy`, and positional method arguments
+borrow them instead of taking simple enums by value. Shared request/response
+types are both affected. This is not a request-validation or authorization
+bypass: applications must reject unsupported request values and fail closed for
+unknown algorithms, effects, matching modes, or credential injection semantics.
+
+The implementation changes type generation, not `progenitor-client` transport.
+Do not install a floating development branch as a production generator; pin the
+verified Progenitor commit and its Typify commit with a lockfile.
+
 ## Changing default client settings
 
 Currently, the generated code doesn't deal with request headers. To add default headers to all requests, you can use the default_headers method when constructing the Client.

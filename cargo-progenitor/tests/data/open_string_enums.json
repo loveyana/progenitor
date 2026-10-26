@@ -1,0 +1,43 @@
+{
+  "openapi": "3.0.3",
+  "info": {"title": "Open string enum fixture", "version": "1"},
+  "paths": {
+    "/config": {
+      "get": {
+        "operationId": "get_config",
+        "parameters": [{
+          "name": "provider",
+          "in": "query",
+          "required": true,
+          "schema": {"$ref": "#/components/schemas/ProviderKind"}
+        }],
+        "responses": {
+          "200": {
+            "description": "Configuration",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Envelope"}}}
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ProviderKind": {
+        "type": "string",
+        "enum": ["api_key", "oauth_client"],
+        "default": "api_key"
+      },
+      "Envelope": {
+        "type": "object",
+        "required": ["provider", "state"],
+        "properties": {
+          "provider": {"$ref": "#/components/schemas/ProviderKind"},
+          "state": {"type": "string", "enum": ["pending", "done"]},
+          "optional_provider": {"$ref": "#/components/schemas/ProviderKind"},
+          "providers": {"type": "array", "items": {"$ref": "#/components/schemas/ProviderKind"}},
+          "nullable_state": {"type": "string", "nullable": true, "enum": ["pending", "done"]}
+        }
+      }
+    }
+  }
+}

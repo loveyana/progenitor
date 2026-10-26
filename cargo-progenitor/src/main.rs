@@ -54,6 +54,9 @@ struct Args {
     /// Include client code rather than depending on progenitor-client
     #[clap(default_value = match is_non_release() { true => "true", false => "false" }, long, action = clap::ArgAction::Set)]
     include_client: bool,
+    /// Preserve unknown string enum values (changes generated types and parsing)
+    #[clap(long)]
+    open_string_enums: bool,
 }
 
 #[derive(Copy, Clone, ValueEnum)]
@@ -119,7 +122,8 @@ fn main() -> Result<()> {
     let mut builder = Generator::new(
         GenerationSettings::default()
             .with_interface(args.interface.into())
-            .with_tag(args.tags.into()),
+            .with_tag(args.tags.into())
+            .with_open_string_enums(args.open_string_enums),
     );
 
     match builder.generate_tokens(&api) {

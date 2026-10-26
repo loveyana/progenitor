@@ -21,5 +21,7 @@ Options:
           SDK tag style [default: merged] [possible values: merged, separate]
       --include-client <INCLUDE_CLIENT>
           Include client code rather than depending on progenitor-client [default: true] [possible values: true, false]
+      --open-string-enums
+          Preserve unknown string enum values (changes generated types and parsing)
   -h, --help
           Print help

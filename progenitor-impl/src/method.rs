@@ -312,7 +312,9 @@ impl Generator {
                         // Path parameters MUST be required.
                         assert!(parameter_data.required);
 
-                        let schema = parameter_data.schema()?.to_schema();
+                        let schema = parameter_data
+                            .schema()?
+                            .to_schema(self.settings.open_string_enums);
 
                         let name = sanitize(
                             &format!("{}-{}", operation_id, &parameter_data.name),
@@ -334,7 +336,9 @@ impl Generator {
                         style: openapiv3::QueryStyle::Form,
                         allow_empty_value: _, // Irrelevant for this client
                     } => {
-                        let schema = parameter_data.schema()?.to_schema();
+                        let schema = parameter_data
+                            .schema()?
+                            .to_schema(self.settings.open_string_enums);
                         let name = sanitize(
                             &format!(
                                 "{}-{}",
@@ -371,7 +375,9 @@ impl Generator {
                         parameter_data,
                         style: openapiv3::HeaderStyle::Simple,
                     } => {
-                        let schema = parameter_data.schema()?.to_schema();
+                        let schema = parameter_data
+                            .schema()?
+                            .to_schema(self.settings.open_string_enums);
                         let name = sanitize(
                             &format!(
                                 "{}-{}",
@@ -467,7 +473,7 @@ impl Generator {
                         assert!(mt.encoding.is_empty());
 
                         let typ = if let Some(schema) = &mt.schema {
-                            let schema = schema.to_schema();
+                            let schema = schema.to_schema(self.settings.open_string_enums);
                             let name = sanitize(
                                 &format!("{}-response", operation.operation_id.as_ref().unwrap(),),
                                 Case::Pascal,
@@ -2151,9 +2157,10 @@ impl Generator {
                     &format!("{}-body", operation.operation_id.as_ref().unwrap(),),
                     Case::Pascal,
                 );
-                let typ = self
-                    .type_space
-                    .add_type_with_name(&schema.to_schema(), Some(name))?;
+                let typ = self.type_space.add_type_with_name(
+                    &schema.to_schema(self.settings.open_string_enums),
+                    Some(name),
+                )?;
                 OperationParameterType::Type(typ)
             }
         };
